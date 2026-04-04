@@ -3,6 +3,8 @@
 
 PY ?= python3
 JUPYTER_PORT ?= 8888
+# Set to a non-empty value to unset OPENAI_API_KEY for the Lab process (use with JUPYTER_BASE_OPENAI_KEY_FILE).
+JUPYTER_STRIP_OPENAI_ENV ?=
 COMPOSE ?= docker compose
 
 help: ## Show available Make targets
@@ -38,8 +40,13 @@ format-check: ## Fail if Ruff would reformat files
 	pdm run ruff format --check src tests
 
 run-jupyter: ## Start JupyterLab locally (project env, notebooks/ as cwd)
-	JUPYTERLAB_SETTINGS_DIR="$(CURDIR)/jupyter/lab/user-settings" \
-		pdm run jupyter lab --notebook-dir=notebooks --port=$(JUPYTER_PORT) --no-browser
+	@if [ -n "$(JUPYTER_STRIP_OPENAI_ENV)" ]; then \
+		env -u OPENAI_API_KEY JUPYTERLAB_SETTINGS_DIR="$(CURDIR)/jupyter/lab/user-settings" \
+			pdm run jupyter lab --notebook-dir=notebooks --port=$(JUPYTER_PORT) --no-browser; \
+	else \
+		JUPYTERLAB_SETTINGS_DIR="$(CURDIR)/jupyter/lab/user-settings" \
+			pdm run jupyter lab --notebook-dir=notebooks --port=$(JUPYTER_PORT) --no-browser; \
+	fi
 
 stop-jupyter: ## Stop local JupyterLab processes started for this repo
 	-pkill -f "jupyter-lab.*--notebook-dir=notebooks" || true

@@ -2,20 +2,11 @@
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-
-def _default_repo_root() -> Path:
-    """Resolve repository root (directory containing `pyproject.toml`)."""
-    here = Path(__file__).resolve()
-    for parent in (here.parent, *here.parents):
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    return here.parents[3]
+from jupyter_base.config.env_lookup import load_env_file_dict, lookup_env
+from jupyter_base.config.paths import default_repo_root
 
 
 @dataclass(frozen=True)
@@ -29,16 +20,23 @@ class AppSettings:
 
 
 def load_settings(*, env_file: Path | None = None, repo_root: Path | None = None) -> AppSettings:
-    """Load settings, optionally reading `env_file` into the process environment."""
-    root = repo_root or _default_repo_root()
+    """Load settings from the process environment and optional dotenv file.
+
+    Dotenv values are merged the same way as ``load_dotenv(override=False)``, but
+    keys from the file are **not** written into ``os.environ``. That keeps values
+    such as ``OPENAI_API_KEY`` (when stored only in ``.env``) out of the process
+    environment so notebooks cannot read them via ``os.environ``.
+    """
+    root = repo_root or default_repo_root()
     path = env_file if env_file is not None else root / ".env"
-    if path.is_file():
-        load_dotenv(path)
+    file_values = load_env_file_dict(path)
     data_default = root / "data"
-    data_raw = os.getenv("JUPYTER_BASE_DATA_DIR", str(data_default))
+    data_raw = lookup_env(file_values, "JUPYTER_BASE_DATA_DIR", str(data_default))
+    data_path = data_raw if data_raw is not None else str(data_default)
+    debug_raw = lookup_env(file_values, "JUPYTER_BASE_DEBUG", "") or ""
     return AppSettings(
-        app_name=os.getenv("JUPYTER_BASE_APP_NAME", "jupyter-base"),
-        environment=os.getenv("JUPYTER_BASE_ENV", "development"),
-        debug=os.getenv("JUPYTER_BASE_DEBUG", "").lower() in ("1", "true", "yes"),
-        data_dir=Path(data_raw).expanduser().resolve(),
+        app_name=lookup_env(file_values, "JUPYTER_BASE_APP_NAME", "jupyter-base") or "jupyter-base",
+        environment=lookup_env(file_values, "JUPYTER_BASE_ENV", "development") or "development",
+        debug=debug_raw.lower() in ("1", "true", "yes"),
+        data_dir=Path(data_path).expanduser().resolve(),
     )
