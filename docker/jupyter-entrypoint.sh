@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
 cd /app
+export JUPYTERLAB_SETTINGS_DIR=/app/jupyter/lab/user-settings
 # Ensure the local package and notebook extras match the mounted workspace.
 pdm sync -G notebook
 

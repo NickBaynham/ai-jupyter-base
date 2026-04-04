@@ -38,7 +38,8 @@ format-check: ## Fail if Ruff would reformat files
 	pdm run ruff format --check src tests
 
 run-jupyter: ## Start JupyterLab locally (project env, notebooks/ as cwd)
-	pdm run jupyter lab --notebook-dir=notebooks --port=$(JUPYTER_PORT) --no-browser
+	JUPYTERLAB_SETTINGS_DIR="$(CURDIR)/jupyter/lab/user-settings" \
+		pdm run jupyter lab --notebook-dir=notebooks --port=$(JUPYTER_PORT) --no-browser
 
 stop-jupyter: ## Stop local JupyterLab processes started for this repo
 	-pkill -f "jupyter-lab.*--notebook-dir=notebooks" || true
