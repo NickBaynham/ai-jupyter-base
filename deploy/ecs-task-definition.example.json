@@ -1,0 +1,50 @@
+{
+  "family": "jupyter-base-jupyter",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/jupyterBaseTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "jupyter",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/jupyter-base:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8888,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "JUPYTER_BASE_ENV", "value": "production" },
+        { "name": "JUPYTER_BASE_APP_NAME", "value": "jupyter-base" }
+      ],
+      "secrets": [
+        {
+          "name": "JUPYTER_LAB_TOKEN",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:jupyter-lab-token"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/jupyter-base-jupyter",
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "jupyter"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "python -c \"import socket; s=socket.create_connection(('127.0.0.1',8888),2); s.close()\" || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ]
+}

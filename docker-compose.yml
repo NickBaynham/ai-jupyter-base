@@ -1,0 +1,11 @@
+services:
+  jupyter:
+    build: .
+    ports:
+      - "${JUPYTER_PORT:-8888}:8888"
+    volumes:
+      - .:/app
+    environment:
+      - PDM_USE_VENV=1
+      # Leave empty for no token (local dev only). Set a secret for shared environments.
+      - JUPYTER_LAB_TOKEN=${JUPYTER_LAB_TOKEN:-}

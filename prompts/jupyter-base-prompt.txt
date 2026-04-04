@@ -1,0 +1,335 @@
+Cursor Prompt
+
+Build a new production-ready Python repository from scratch for a project that combines:
+	•	a reusable backend Python library
+	•	Jupyter notebooks for interactive exploration and workflows
+	•	PDM for dependency and virtual environment management
+	•	a Makefile for automation
+	•	Docker support for Jupyter
+	•	GitHub Actions for build and test
+	•	optional AWS deployment to ECS
+	•	strong documentation, tests, linting, and developer onboarding
+
+The repository should be designed so that developers can:
+	•	install and set up the project easily
+	•	run Jupyter locally
+	•	run Jupyter in Docker
+	•	use the backend Python packages cleanly from notebooks
+	•	run tests, linting, and quality checks with make
+	•	deploy the service or notebook environment to AWS ECS later
+	•	store notebooks under a dedicated notebooks/ directory
+
+The codebase must be organized cleanly and professionally, with production-quality structure and conventions.
+
+⸻
+
+Canonical naming (match this reference repo)
+
+Use these names consistently unless the user overrides them:
+	•	Project / distribution name: jupyter-base (pyproject `[project].name`)
+	•	Import package: jupyter_base (directory src/jupyter_base/)
+	•	Initial version: 0.1.0 in pyproject and `jupyter_base.__version__`
+	•	Environment variables for app config: JUPYTER_BASE_APP_NAME, JUPYTER_BASE_ENV, JUPYTER_BASE_DEBUG, JUPYTER_BASE_DATA_DIR (document in .env.example)
+
+⸻
+
+Primary Goals
+
+Create a repository with the following characteristics:
+
+1. Python backend library
+	•	Create a reusable Python package under src/jupyter_base/
+	•	Use a src layout to avoid import ambiguity
+	•	The backend package should expose clean modules that can be imported from notebooks and from future services
+	•	Include example business logic modules and utility modules so the project is not just empty scaffolding:
+	•	config/: typed settings loaded from env + optional .env (python-dotenv); expose AppSettings and load_settings()
+	•	core/: domain types (e.g. TaskSummary, PipelineResult with to_dict() for notebooks)
+	•	services/: a small workflow (e.g. run_example_pipeline(settings, topic)) composing config, core, and utils
+	•	utils/: at least one helper (e.g. slugify)
+	•	Add src/jupyter_base/py.typed for PEP 561
+	•	Code should be production-ready, typed where sensible, and structured for maintainability
+
+2. Jupyter notebook support
+	•	A notebooks/ folder must exist for user-created notebooks
+	•	Include notebooks/example_notebook.ipynb that imports jupyter_base (load_settings, run_example_pipeline) with no sys.path hacks
+	•	JupyterLab must be runnable:
+	•	locally via PDM (pdm run jupyter lab …)
+	•	in Docker
+	•	Ensure imports from jupyter_base work reliably from notebooks without hacky notebook-local path manipulation
+	•	Use a sensible, professional solution for notebook imports:
+	•	install the project editable via PDM (pdm sync installs the local package)
+	•	ensure Jupyter runs in the same environment as that installation (make run-jupyter uses pdm run)
+	•	Do not rely on fragile sys.path.append(...) code in notebooks as the primary solution
+
+3. Makefile automation
+
+Create a comprehensive Makefile with targets for at least:
+	•	install — pdm sync -G dev -G test -G notebook
+	•	update — pdm update
+	•	lock — pdm lock
+	•	test — pdm run pytest
+	•	test-unit — pdm run pytest tests/unit
+	•	lint — pdm run ruff check src tests
+	•	format — pdm run ruff format src tests
+	•	format-check — pdm run ruff format --check src tests (used by quality and CI)
+	•	typecheck — pdm run mypy src/jupyter_base
+	•	quality — lint, format-check, typecheck, test (in that dependency order)
+	•	run-jupyter — pdm run jupyter lab --notebook-dir=notebooks --port=$(JUPYTER_PORT) --no-browser (default port 8888)
+	•	stop-jupyter — stop local jupyter-lab processes tied to this repo (e.g. pkill pattern matching notebook-dir=notebooks)
+	•	run-jupyter-docker — docker compose up -d --build jupyter
+	•	stop-jupyter-docker — docker compose down
+	•	build-docker — docker compose build jupyter
+	•	clean — remove .pytest_cache, .mypy_cache, .ruff_cache, coverage/htmlcov, dist, build, __pycache__
+	•	help — list targets with descriptions (use ## comments per target and grep/awk pattern)
+
+Support JUPYTER_PORT (default 8888) and COMPOSE ?= docker compose for portability.
+
+Make commands should be ergonomic and clearly documented.
+
+4. PDM-managed project
+	•	Use PDM as the package manager and virtual environment manager
+	•	Configure the project properly in pyproject.toml
+	•	Use [dependency-groups] (PEP 735 style) for:
+	•	dev: ruff, mypy, pre-commit
+	•	test: pytest, pytest-cov
+	•	notebook: jupyterlab, ipykernel
+	•	aws: boto3 (optional ECS/scripting)
+	•	Runtime dependency: python-dotenv (for config loading)
+	•	Commit pdm.lock to version control
+	•	Use Hatchling as the PEP 517 build backend (not pdm-backend), so the build is broadly compatible:
+	•	[build-system] requires = ["hatchling"], build-backend = "hatchling.build"
+	•	[tool.hatch.build.targets.wheel] packages = ["src/jupyter_base"]
+	•	Configure Ruff, pytest, mypy, and coverage in pyproject.toml (ruff target-version py311, line-length 100; mypy strict on jupyter_base with mypy_path = "src"; pytest testpaths = ["tests"])
+	•	Make sure Makefile and docs use pdm run … where appropriate
+
+5. Docker support
+	•	Provide Docker support for JupyterLab
+	•	Root Dockerfile (e.g. python:3.12-slim-bookworm): install pip + pdm, copy pyproject.toml, pdm.lock, README.md, src/, docker/jupyter-entrypoint.sh, run pdm sync -G notebook, EXPOSE 8888
+	•	HEALTHCHECK: TCP connect to 127.0.0.1:8888 inside the container (no token required for the probe)
+	•	ENTRYPOINT: docker/jupyter-entrypoint.sh which:
+	•	cd /app && pdm sync -G notebook
+	•	if JUPYTER_LAB_TOKEN is set, pass --ServerApp.token=…; else for local-only Docker use --ServerApp.token= --ServerApp.password= (document security warning)
+	•	exec pdm run jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --notebook-dir=notebooks (and allow_origin as needed for dev)
+	•	docker-compose.yml: service jupyter, build context ., ports map host JUPYTER_PORT to 8888, volume mount .:/app, pass JUPYTER_LAB_TOKEN and PDM_USE_VENV=1
+	•	Add .dockerignore (.git, .venv, caches, .env, checkpoints, etc.)
+	•	Make it easy to start and stop via make
+	•	Keep the image lean and practical
+
+6. Quality and professionalism
+	•	Include:
+	•	unit tests under tests/unit/ plus tests/conftest.py
+	•	Ruff for linting, formatting, and import sorting (I rule)
+	•	mypy strict on the backend package
+	•	pytest with pytest-cov; CI may use --cov=jupyter_base --cov-report=xml
+	•	Use modern Python tooling with a clean, maintainable configuration in pyproject.toml
+	•	Add enough implementation and tests to demonstrate professional standards (settings, models, workflow, utils)
+	•	Include docstrings where helpful on public APIs
+	•	Keep code readable and consistent
+
+7. GitHub Actions
+
+Add .github/workflows/ci.yml that:
+	•	triggers on push and pull_request to main (with concurrency cancel-in-progress)
+	•	uses Python 3.12 (align with Dockerfile; pyproject may allow >=3.11)
+	•	installs PDM via pip, runs pdm sync -G dev -G test
+	•	runs pdm run ruff check src tests
+	•	runs pdm run ruff format --check src tests
+	•	runs pdm run mypy src/jupyter_base
+	•	runs pdm run pytest with coverage flags
+	•	build job: docker/setup-buildx-action + docker/build-push-action with push: false, tags jupyter-base:jupyter-ci, GHA cache
+
+8. AWS ECS deployment support
+
+Provide a starting point for AWS deployment on ECS:
+	•	deploy/README.md: image assumptions, env vars / secrets (JUPYTER_LAB_TOKEN, JUPYTER_BASE_*), ECR push, Fargate, ALB/private networking, EFS for persistence if needed
+	•	deploy/ecs-task-definition.example.json: placeholder Fargate task with port 8888, environment, secrets from Secrets Manager, CloudWatch logs, container health check matching Docker TCP pattern
+	•	Keep this practical and not overengineered
+
+9. Documentation
+
+The README.md must be comprehensive and high quality. It should include:
+	•	project overview
+	•	capabilities
+	•	architecture overview (optional: mermaid diagram)
+	•	repository structure (table)
+	•	prerequisites
+	•	local setup (cp .env.example .env, make install, make test)
+	•	PDM usage (sync, add, lock, editable install explanation)
+	•	Make targets (table + make help)
+	•	how to run Jupyter locally and stop it
+	•	how to run Jupyter in Docker and stop it (token / JUPYTER_PORT notes)
+	•	how notebook imports work (src layout + editable install + same interpreter)
+	•	how to run tests and quality checks (make test, make quality, individual tools)
+	•	how to contribute
+	•	onboarding guide for developers
+	•	GitHub workflow overview
+	•	AWS ECS deployment approach (point to deploy/README.md)
+	•	troubleshooting section
+	•	common import issues and how this project avoids them
+	•	design choices (e.g. Hatchling + PDM, Ruff, compose mount for dev)
+	•	link to this prompt file: prompts/jupyter-base-prompt.txt (and mention Cursor @prompts/jupyter-base-prompt.txt)
+
+Also add:
+	•	.env.example (all JUPYTER_BASE_* and optional JUPYTER_LAB_TOKEN / JUPYTER_PORT for compose)
+	•	sensible .gitignore (keep pdm.lock tracked; ignore .pdm-python, .venv, caches)
+	•	data/.gitkeep (default data directory referenced by settings)
+	•	.pre-commit-config.yaml using astral-sh/ruff-pre-commit (align rev with ruff version roughly)
+
+⸻
+
+Repository Requirements
+
+Use this structure (concrete paths):
+
+repo-root/
+├─ src/
+│  └─ jupyter_base/
+│     ├─ __init__.py
+│     ├─ py.typed
+│     ├─ core/
+│     ├─ services/
+│     ├─ utils/
+│     └─ config/
+├─ tests/
+│  ├─ unit/
+│  └─ conftest.py
+├─ notebooks/
+│  └─ example_notebook.ipynb
+├─ docker/
+│  └─ jupyter-entrypoint.sh
+├─ deploy/
+│  ├─ README.md
+│  └─ ecs-task-definition.example.json
+├─ data/
+│  └─ .gitkeep
+├─ .github/
+│  └─ workflows/
+│     └─ ci.yml
+├─ Makefile
+├─ pyproject.toml
+├─ pdm.lock
+├─ README.md
+├─ Dockerfile
+├─ docker-compose.yml
+├─ .dockerignore
+├─ .pre-commit-config.yaml
+├─ .env.example
+└─ .gitignore
+
+Wire names, paths, and commands consistently across Makefile, Docker, CI, and README.
+
+⸻
+
+Technical Expectations
+
+Python packaging and import reliability
+
+This is important.
+
+Make the notebook experience reliable and developer-friendly. The project must avoid the common problem where notebooks cannot import modules from the backend codebase.
+
+Implement a robust solution using:
+	•	src layout under src/jupyter_base/
+	•	proper package installation through PDM (pdm sync)
+	•	a clearly documented workflow so Jupyter uses the same environment as the package installation
+
+Do not use ad hoc notebook hacks as the main mechanism.
+
+Tooling
+
+Use this stack (or equivalent documented choices):
+	•	Ruff: lint, format, import sorting
+	•	mypy: type checking
+	•	pytest + pytest-cov: tests and CI coverage
+
+Keep the stack practical. Favor simple, widely accepted tooling.
+
+Tests
+	•	Add real unit tests for backend modules
+	•	Ensure tests are runnable with make test and make test-unit
+	•	Include enough functionality in the backend package so tests are meaningful
+
+Jupyter
+	•	Ensure make run-jupyter launches JupyterLab locally in the project environment
+	•	Ensure make stop-jupyter can stop it cleanly
+	•	Ensure Docker equivalents exist as well
+	•	Make notebook persistence straightforward (host ./notebooks)
+
+⸻
+
+Implementation Guidance
+
+Create a meaningful sample backend library, not just scaffolding:
+	•	configuration loading from env / .env
+	•	a small service layer and workflow callable from notebooks
+	•	reusable utility functions
+	•	structured outputs (e.g. to_dict()) that demonstrate how notebook users consume the library
+
+The project should feel like a real foundation for future work, not a toy.
+
+⸻
+
+Deliverables
+
+Generate the full repository implementation, including:
+	•	pyproject.toml (with Hatchling build, PDM groups, tool configs)
+	•	pdm.lock
+	•	Makefile
+	•	backend package under src/jupyter_base/
+	•	unit tests and conftest
+	•	Jupyter setup and example notebook
+	•	Dockerfile, docker-compose.yml, docker/jupyter-entrypoint.sh, .dockerignore
+	•	GitHub Actions workflow(s)
+	•	deploy/README.md and ecs-task-definition.example.json
+	•	.env.example
+	•	.gitignore
+	•	.pre-commit-config.yaml
+	•	data/.gitkeep
+	•	complete README.md
+
+Also:
+	•	explain important design decisions in the README
+	•	include comments only where they add value
+	•	ensure all paths and commands are consistent
+	•	make the repo runnable immediately after setup (make install → make test → make run-jupyter)
+
+⸻
+
+Acceptance Criteria
+
+The repo is complete when:
+	1.	pdm sync -G dev -G test -G notebook succeeds (and make install does the same)
+	2.	make install works
+	3.	make test and make test-unit run unit tests successfully
+	4.	make lint, make format-check, make typecheck, and make quality work
+	5.	make run-jupyter launches JupyterLab locally
+	6.	jupyter_base imports work correctly from notebooks using the project environment
+	7.	make run-jupyter-docker launches Jupyter in Docker (when Docker is available)
+	8.	make stop-jupyter and make stop-jupyter-docker stop services cleanly
+	9.	GitHub Actions run lint, format check, mypy, pytest, and a Docker image build
+	10.	README is complete enough for a new developer to onboard without guesswork
+	11.	pdm build produces sdist/wheel without errors (Hatchling)
+
+⸻
+
+Important Design Preferences
+	•	Prefer clarity over cleverness
+	•	Keep things production-minded
+	•	Use strong defaults
+	•	Avoid overengineering
+	•	Make developer experience excellent
+	•	Ensure the repo would look professional on GitHub
+	•	Write the code and docs as if this repo will be shared publicly and maintained long-term
+
+⸻
+
+Nice-to-Have Enhancements (included in reference)
+
+Include where reasonable:
+	•	pre-commit with Ruff hooks
+	•	sample notebook demonstrating backend package usage
+	•	Make help output with descriptions
+	•	Docker HEALTHCHECK (TCP to port 8888)
+	•	minimal config abstraction for environment variables (AppSettings + load_settings)
+	•	versioned package metadata (__version__ and pyproject version)
+	•	example ECS task definition and deployment notes under deploy/
