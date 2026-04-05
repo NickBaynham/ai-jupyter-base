@@ -1,4 +1,4 @@
-.PHONY: help install update lock test test-unit lint format typecheck quality \
+.PHONY: help install install-jupyter-kernel update lock test test-unit lint format typecheck quality \
 	run-jupyter stop-jupyter run-jupyter-docker stop-jupyter-docker build-docker clean
 
 PY ?= python3
@@ -10,8 +10,12 @@ COMPOSE ?= docker compose
 help: ## Show available Make targets
 	@grep -E '^[a-zA-Z0-9_.-]+:.*?##' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-22s\033[0m %s\n", $$1, $$2}'
 
-install: ## Install locked dependencies (dev, test, notebook groups)
+install: ## Install locked dependencies (dev, test, notebook groups) and register the Jupyter kernel
 	pdm sync -G dev -G test -G notebook
+	@$(MAKE) install-jupyter-kernel
+
+install-jupyter-kernel: ## Register ipykernel spec "Python (jupyter-base)" for this project’s .venv
+	pdm run python -m ipykernel install --user --name=jupyter-base --display-name="Python (jupyter-base)"
 
 update: ## Update dependencies and refresh the lock file
 	pdm update

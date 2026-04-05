@@ -84,7 +84,8 @@ Run `make help` for the full list. Common targets:
 
 | Target | Description |
 |--------|-------------|
-| `install` | Sync dev, test, and notebook groups from `pdm.lock` |
+| `install` | Sync dev, test, and notebook groups from `pdm.lock`, then register the **`Python (jupyter-base)`** kernel |
+| `install-jupyter-kernel` | Register / refresh the `jupyter-base` ipykernel spec only (after `pdm sync`) |
 | `lock` / `update` | Regenerate or bump dependencies |
 | `test` / `test-unit` | Full suite or `tests/unit` only |
 | `lint` / `format` / `format-check` | Ruff |
@@ -131,6 +132,7 @@ make stop-jupyter-docker
 1. **`src/` layout** — the import name is always `jupyter_base`, not a repo-relative path.
 2. **Editable install** — `pdm sync` / `make install` installs the project into the active env.
 3. **Same interpreter** — run Jupyter with `pdm run jupyter lab` (or Docker entrypoint using PDM) so kernels see that env.
+4. **Correct kernel** — `make install` registers a kernelspec **`Python (jupyter-base)`** that points at this project’s `.venv`. In JupyterLab, pick that kernel (top-right kernel name). If the notebook uses another kernel (for example a system Python), `import jupyter_base` will fail.
 
 This avoids scattered `sys.path.append(...)` cells and the “wrong kernel” problem.
 
@@ -223,7 +225,7 @@ See **`deploy/README.md`** for image assumptions, environment variables, secrets
 
 | Issue | What to try |
 |-------|-------------|
-| `ModuleNotFoundError: jupyter_base` | Run `make install`; start Jupyter with `make run-jupyter` or the Docker entrypoint (not a system-wide Jupyter). |
+| `ModuleNotFoundError: jupyter_base` | Run `make install` (registers **`Python (jupyter-base)`**). In the notebook, switch the kernel to **Python (jupyter-base)**. Start Jupyter with `make run-jupyter` or Docker (not a system-wide Jupyter). Run `make install-jupyter-kernel` if you already synced but skipped kernel registration. |
 | Notebook sees old code | Restart the kernel; confirm the kernel’s Python is `.venv/bin/python` (PDM’s venv). |
 | Docker is slow on first start | First `pdm sync` inside the container downloads dependencies; subsequent starts are faster if the mount preserves `.venv`. |
 | Port 8888 in use | `make run-jupyter JUPYTER_PORT=8890` or set `JUPYTER_PORT` for Compose. |

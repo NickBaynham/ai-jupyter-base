@@ -13,7 +13,8 @@ COPY src ./src
 COPY docker/jupyter-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-RUN pdm sync -G notebook
+RUN pdm sync -G notebook \
+    && pdm run python -m ipykernel install --sys-prefix --name=jupyter-base --display-name="Python (jupyter-base)"
 
 EXPOSE 8888
 
