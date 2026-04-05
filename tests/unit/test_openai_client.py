@@ -23,6 +23,17 @@ def test_openai_client_complete_text(repo_root: Path, tmp_path: Path) -> None:
     mock_openai_cls.assert_called_once_with(api_key="sk-test")
 
 
+def test_openai_client_exposes_sdk_namespaces(tmp_path: Path) -> None:
+    env = tmp_path / ".env"
+    env.write_text("OPENAI_API_KEY=sk-test\n", encoding="utf-8")
+    with patch("jupyter_base.services.openai_client.OpenAI") as mock_cls:
+        inner = MagicMock()
+        mock_cls.return_value = inner
+        client = OpenAIClient(repo_root=tmp_path, env_file=env)
+        assert client.responses is inner.responses
+        assert client.chat is inner.chat
+
+
 def test_openai_client_missing_key(tmp_path: Path) -> None:
     env = tmp_path / ".env"
     env.write_text("JUPYTER_BASE_APP_NAME=x\n", encoding="utf-8")

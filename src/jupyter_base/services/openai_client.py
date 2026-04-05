@@ -19,6 +19,10 @@ class OpenAIClient:
     live in ``.env`` or a key file without being copied into cells or left in
     ``os.environ`` (when you use a key file and start Jupyter with
     ``OPENAI_API_KEY`` unset).
+
+    Use :attr:`responses` for the `Responses API <https://platform.openai.com/docs/api-reference/responses>`_
+    (``client.responses.create(...)``), or :meth:`chat_completion` / :meth:`complete_text`
+    for chat completions.
     """
 
     __slots__ = ("_client",)
@@ -42,6 +46,16 @@ class OpenAIClient:
             )
             raise ValueError(msg)
         self._client = OpenAI(api_key=key)
+
+    @property
+    def responses(self) -> Any:
+        """Same as ``OpenAI(...).responses`` — create calls via ``.create()``."""
+        return self._client.responses
+
+    @property
+    def chat(self) -> Any:
+        """Underlying ``chat`` namespace (e.g. ``client.chat.completions.create``)."""
+        return self._client.chat
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"

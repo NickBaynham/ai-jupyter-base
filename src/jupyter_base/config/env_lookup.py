@@ -1,4 +1,7 @@
-"""Read `.env` files without mutating `os.environ` (keeps secrets out of the process environment)."""
+"""Read `.env` files without mutating `os.environ`.
+
+Keeps secrets out of the process environment.
+"""
 
 from __future__ import annotations
 
@@ -15,7 +18,11 @@ def load_env_file_dict(path: Path) -> dict[str, str | None]:
     return dict(dotenv_values(path))
 
 
-def lookup_env(file_values: dict[str, str | None], key: str, default: str | None = None) -> str | None:
+def lookup_env(
+    file_values: dict[str, str | None],
+    key: str,
+    default: str | None = None,
+) -> str | None:
     """Match `load_dotenv(override=False)` semantics: process env wins, then file."""
     if key in os.environ:
         return os.environ[key]

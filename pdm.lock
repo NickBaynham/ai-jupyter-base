@@ -5,7 +5,7 @@
 groups = ["default", "aws", "dev", "notebook", "test"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:afe8f1614766b96f29d20bf6679f474db3fd10f2085e3bb7013df05f89a7b916"
+content_hash = "sha256:292d9154e73d44710efcb964ddfa20c1ea30524bb677e8d5034b493af4179233"
 
 [[metadata.targets]]
 requires_python = ">=3.11"

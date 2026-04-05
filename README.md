@@ -181,6 +181,17 @@ response = client.chat_completion(
 print(response.choices[0].message.content)
 ```
 
+The **`responses`** and **`chat`** attributes match the official [`openai`](https://github.com/openai/openai-python) client, so you can use the [Responses API](https://platform.openai.com/docs/api-reference/responses) without constructing `OpenAI` yourself:
+
+```python
+response = client.responses.create(
+    model="gpt-4.1-mini",
+    instructions="You are a helpful assistant.",
+    input="Explain how neural networks work in simple terms.",
+)
+print(response.output[0].content[0].text)
+```
+
 Optional constructor arguments (defaults suit a notebook started from the repo root):
 
 - **`repo_root`** — repository root if the working directory is not the project root.
