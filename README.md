@@ -150,6 +150,12 @@ The key is resolved in this order (first match wins):
 
 See **`.env.example`** for commented examples.
 
+### Default chat model (optional)
+
+Set **`JUPYTER_BASE_OPENAI_MODEL`** in `.env` or the shell to choose the default model for **`chat_completion`** and **`complete_text`** when you omit `model=`. Process environment wins over the dotenv file (same merge rules as other settings). If unset or empty, the default is **`gpt-4o-mini`**.
+
+`client.responses.create(...)` and `client.chat.completions.create(...)` still require a **`model`** argument in the call; only the wrapper methods use this default.
+
 ### Use in a notebook
 
 A runnable walkthrough lives at [`notebooks/openai_client_example.ipynb`](notebooks/openai_client_example.ipynb). Minimal usage:
@@ -160,9 +166,9 @@ from jupyter_base import OpenAIClient
 client = OpenAIClient()
 
 # Simple single-turn reply (string in, string out)
+# Omit model= to use JUPYTER_BASE_OPENAI_MODEL / gpt-4o-mini
 text = client.complete_text(
     user="Summarize JupyterLab in one sentence.",
-    model="gpt-4o-mini",
     system="You are a concise assistant.",
 )
 print(text)
@@ -172,7 +178,6 @@ For full control over messages and parameters, use **`chat_completion`**, which 
 
 ```python
 response = client.chat_completion(
-    model="gpt-4o-mini",
     messages=[
         {"role": "system", "content": "You reply briefly."},
         {"role": "user", "content": "What is PDM?"},
@@ -197,6 +202,7 @@ Optional constructor arguments (defaults suit a notebook started from the repo r
 - **`repo_root`** — repository root if the working directory is not the project root.
 - **`env_file`** — explicit path to a dotenv file instead of `<repo_root>/.env`.
 - **`api_key`** — override (mostly for tests); prefer configuration files or the environment in normal use.
+- **`default_chat_model`** — override the default model for `chat_completion` / `complete_text`; if omitted, uses `JUPYTER_BASE_OPENAI_MODEL` / `gpt-4o-mini`.
 
 ### Keeping `OPENAI_API_KEY` out of the kernel environment
 

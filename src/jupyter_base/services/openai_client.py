@@ -9,6 +9,7 @@ from typing import Any
 from openai import OpenAI
 from openai.types.chat import ChatCompletion
 
+from jupyter_base.config.openai_defaults import resolve_default_openai_chat_model
 from jupyter_base.config.openai_key import resolve_openai_api_key
 
 
@@ -25,7 +26,7 @@ class OpenAIClient:
     for chat completions.
     """
 
-    __slots__ = ("_client",)
+    __slots__ = ("_client", "_default_chat_model")
 
     def __init__(
         self,
@@ -33,6 +34,7 @@ class OpenAIClient:
         repo_root: Path | None = None,
         env_file: Path | None = None,
         api_key: str | None = None,
+        default_chat_model: str | None = None,
     ) -> None:
         key = api_key or resolve_openai_api_key(repo_root=repo_root, env_file=env_file)
         if not key:
@@ -46,6 +48,11 @@ class OpenAIClient:
             )
             raise ValueError(msg)
         self._client = OpenAI(api_key=key)
+        self._default_chat_model = (
+            default_chat_model
+            if default_chat_model is not None
+            else resolve_default_openai_chat_model(repo_root=repo_root, env_file=env_file)
+        )
 
     @property
     def responses(self) -> Any:
@@ -64,12 +71,18 @@ class OpenAIClient:
         self,
         *,
         messages: Sequence[Mapping[str, Any]],
-        model: str = "gpt-4o-mini",
+        model: str | None = None,
         **kwargs: Any,
     ) -> ChatCompletion:
-        """Call ``chat.completions.create``; returns the SDK response object."""
+        """Call ``chat.completions.create``; returns the SDK response object.
+
+        If ``model`` is omitted, uses ``JUPYTER_BASE_OPENAI_MODEL`` from the
+        environment or dotenv, else ``gpt-4o-mini`` (see
+        :func:`~jupyter_base.config.openai_defaults.resolve_default_openai_chat_model`).
+        """
+        resolved = model if model is not None else self._default_chat_model
         return self._client.chat.completions.create(
-            model=model,
+            model=resolved,
             messages=[dict(m) for m in messages],  # type: ignore[misc]
             **kwargs,
         )
@@ -78,11 +91,15 @@ class OpenAIClient:
         self,
         *,
         user: str,
-        model: str = "gpt-4o-mini",
+        model: str | None = None,
         system: str | None = None,
         **kwargs: Any,
     ) -> str:
-        """Single-turn chat; returns assistant message text (empty string if none)."""
+        """Single-turn chat; returns assistant message text (empty string if none).
+
+        Uses the same default model as :meth:`chat_completion` when ``model`` is
+        omitted.
+        """
         msgs: list[dict[str, str]] = []
         if system is not None:
             msgs.append({"role": "system", "content": system})
