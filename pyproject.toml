@@ -11,6 +11,8 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "requests>=2.31.0",
     "tiktoken>=0.8.0",
+    "pydantic>=2.12.5",
+    "tenacity>=9.1.4",
 ]
 
 [project.urls]
